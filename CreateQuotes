@@ -1,0 +1,99 @@
+//FOR MARKET OPPORTUNITIES
+<apex:component >
+    <script src="/soap/ajax/43.0/connection.js" type="text/javascript"></script>
+    <script>        
+        
+    var marketOpportunityRecordId = null;    
+        
+    $(document).ready(function() {
+        
+        console.log("test");
+        
+        //Wait until custom actions are loaded
+        MAActionFramework.on('ready', function () { 
+    
+            //Change Action to JavaScript
+            MAActionFramework.customActions['CreateQuotes'].Action = "Javascript";
+            
+            //Add Events Array
+            MAActionFramework.customActions['CreateQuotes'].events = {};
+            
+            MAActionFramework.customActions['CreateQuotes'].ActionValue = function (options) {
+                console.log(options);
+                if (MA.isMobile) {
+                    sforce.connection.sessionId = MA.SessionId;
+                }
+                
+                marketOpportunityRecordId = getUrlVars()["recordId"];
+                
+                if(options.records.length > 0) {
+                    let Ids = [];
+                    for(let i = 0; i < options.records.length; i++) {  
+                        if(options.records[i].Id != undefined) {
+                            if(options.records[i].Id.substring(0, 3) == 'a3p' || options.records[i].Id.substring(0, 3) == 'a3T') {
+                                Ids.push(options.records[i].Id);
+                            }
+                        }
+                    }
+                    
+                    if(Ids.length > 0) {
+                        createQuote(Ids);
+                    } else {
+                        MAToastMessages.showError({
+                            message: 'This button only works with Facilities'
+                        });
+                    }
+                }
+           };       
+        });
+        
+        function createQuote(records) {
+            if(marketOpportunityRecordId) {
+                
+                let quoteList = [];
+                for(let i = 0; i < records.length; i++) {
+                    var quote = new sforce.SObject("Quote");
+                    quote.Warehouse__c = records[i];
+                    quote.Market_Opportunity__c = marketOpportunityRecordId;
+                    quote.Name = 'Test Quote';
+                    quote.Created_by_Map__c = true;
+                    quoteList.push(quote);
+                }
+                
+                if(quoteList.length > 0) {
+                    var result = sforce.connection.create(quoteList);
+                    
+                    let insertFailed = false;
+                    for (let j = 0; j < result.length; j++) {
+                        if (result[j].getBoolean("success")) {
+                            console.log("new record created with id " + result[j].id);
+                        } else {
+                            console.log("failed to create record " + result[j]);
+                            insertFailed = true;
+                        }
+                    }
+                    
+                    if(!insertFailed) {
+                        MAToastMessages.showSuccess({
+                            message: 'Quotes Created!'
+                        });
+                    }else {
+                        MAToastMessages.showError({
+                            message: '1 or more quotes failed to be created'
+                        });
+                    }
+                }
+            }
+        }
+        
+        function getUrlVars() {
+            var vars = {};
+            var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+                vars[key] = value;
+            });
+            return vars;
+        }
+        
+    });
+    </script>
+</apex:component>
